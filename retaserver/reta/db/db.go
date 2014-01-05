@@ -24,10 +24,10 @@ func SubmitActivity(c appengine.Context, player string, version string, data str
 		return err
 	}
 
-	return SubmitEvent(c, activity.Player, activity.Version, activity.Data)
+	return submitEvent(c, activity.Player, activity.Version, activity.Data)
 }
 
-func SubmitEvent(c appengine.Context, player string, version string, data string) error {
+func submitEvent(c appengine.Context, player string, version string, data string) error {
 	b := []byte(data)
 
 	var f interface{}
