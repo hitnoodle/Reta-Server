@@ -5,14 +5,9 @@ import (
 	"net/http"
 
 	"appengine"
-	"appengine/datastore"
-)
 
-type Activity struct {
-	Player  string
-	Version string
-	Data    string
-}
+	"reta/db"
+)
 
 func init() {
 	http.HandleFunc("/", rootHandler)
@@ -20,27 +15,11 @@ func init() {
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-
 	fmt.Fprintln(w, "Reta Server | ONLINE\n")
-	fmt.Fprintln(w, "Latest activity\n")
+	fmt.Fprintln(w, "Latest events\n")
 
-	q := datastore.NewQuery("Activity").Limit(15)
-	for t := q.Run(c); ; {
-		var act Activity
-
-		_, err := t.Next(&act)
-		if err == datastore.Done {
-			break
-		}
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		fmt.Fprintf(w, "Activity=%#v\n\n", act)
-	}
+	c := appengine.NewContext(r)
+	db.ListActivities(w, c, 15)
 }
 
 func connectorHandler(w http.ResponseWriter, r *http.Request) {
@@ -52,18 +31,11 @@ func connectorHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		c := appengine.NewContext(r)
-
 		formData := r.PostForm
-		activity := Activity{
-			Player:  formData.Get("userid"),
-			Version: formData.Get("appversion"),
-			Data:    formData.Get("data"),
-		}
 
-		_, err = datastore.Put(c, datastore.NewIncompleteKey(c, "Activity", nil), &activity)
+		err = db.SubmitActivity(c, formData.Get("userid"), formData.Get("appversion"), formData.Get("data"))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
 		}
 
 		fmt.Fprint(w, "DATA_SENT_SUCCESS")
