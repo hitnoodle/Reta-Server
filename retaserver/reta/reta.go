@@ -45,11 +45,12 @@ func predictHandler(w http.ResponseWriter, r *http.Request) {
 	today := time.Now().Format(layout)
 
 	fmt.Fprintln(w, "Model Generation\n")
-	fmt.Fprintln(w, "From 01/01/2013 to", today)
+	fmt.Fprintln(w, "From 01/01/2014 to", today)
 	fmt.Fprintln(w, "Training - Test Dataset Percentage: 80% - 20%")
 	fmt.Fprintln(w, "Method: Logistic Regression")
+	fmt.Fprintln(w, "Technique: Iteratively Reweighted Least Squares | Newton-Raphson")
 
-	fmt.Fprintln(w, "\nResult [TEST]\n")
+	fmt.Fprintln(w, "\n[TEST]")
 
 	c := appengine.NewContext(r)
 

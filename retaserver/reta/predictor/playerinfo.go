@@ -12,6 +12,7 @@ type PlayerInfo struct {
 	SocialActivities int
 	Progression      float64
 	Level            int
+	Day1Retention    bool
 }
 
 func GetPlayerInformation(begin time.Time, end time.Time, infos *[]PlayerInfo) error {
