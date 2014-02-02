@@ -53,7 +53,7 @@ func (r *Regression) Initialize(input int) {
 }
 
 func (r *Regression) EnableDebugMode(c appengine.Context) {
-	r.debugMode = true
+	//r.debugMode = true
 	r.debugContext = c
 }
 
@@ -128,6 +128,15 @@ func (r *Regression) GenerateModel() error {
 	if err != nil {
 		return err
 	}
+
+	//Compute log likelihood of the model
+	err = r.computeLogLikelihood()
+	if err != nil {
+		return err
+	}
+
+	//Compute deviance of the model
+	r.computeDeviance()
 
 	return nil
 }
@@ -453,6 +462,131 @@ func (r *Regression) computeOddsRatio() error {
 	return nil
 }
 
+//Log likelihood ln LF = TotalAddition[(Yi * ln Pi) + (1 - Yi) * ln (1 - Pi)]
+func (r *Regression) computeLogLikelihood() error {
+	numData := len(r.dataPoints)
+	numVariables := len(r.dataPoints[0].Variables)
+
+	//Create test data matrix for observed (result) and (independent) variables
+	testObserved := matrix.Zeros(numData, 1)
+	testVariables := matrix.Zeros(numData, numVariables+1)
+
+	//Copy data to matrix
+	for i := 0; i < numData; i++ {
+		testObserved.Set(i, 0, r.dataPoints[i].Result)
+		for j := 0; j < numVariables+1; j++ {
+			if j == 0 {
+				testVariables.Set(i, 0, 1)
+			} else {
+				testVariables.Set(i, j, r.dataPoints[i].Variables[j-1])
+			}
+		}
+	}
+
+	//Error check the coefficient
+	coeffLen := len(r.model.Coefficients)
+	if coeffLen == 0 {
+		return errors.New("Error: Coefficients in models are not generated yet")
+	}
+
+	//Create coefficient matrix from already generated model
+	bVector := matrix.Zeros(coeffLen, 1)
+	for i := 0; i < coeffLen; i++ {
+		bVector.Set(i, 0, r.model.Coefficients[i])
+	}
+
+	//Error checking again
+	xRows := testVariables.Rows()
+	xCols := testVariables.Cols()
+	yRows := testObserved.Rows()
+	bRows := bVector.Rows()
+	if xCols != bRows || xRows != yRows {
+		return errors.New("Error:Bad dimensions for xMatrix or yVector or bVector in computeLogLikelihood()")
+	}
+
+	pVector, err := r.constructProbVector(testVariables, bVector)
+	if err != nil {
+		return err
+	}
+
+	pRows := pVector.Rows()
+	if pRows != xRows {
+		return errors.New("Error:Unequal rows in prob vector and design matrix in computeLogLikelihood()")
+	}
+
+	//Initiate cases
+	logLikelihood := 0.0
+
+	for i := 0; i < yRows; i++ {
+		pVal := pVector.Get(i, 0)
+		observedVal := testObserved.Get(i, 0)
+
+		current := 0.0
+		if observedVal == 0.0 {
+			current = math.Log(1 - pVal)
+		} else if observedVal == 1.0 {
+			current = math.Log(pVal)
+		}
+
+		if r.debugMode {
+			r.debugContext.Infof("\nY is %v and P is %v", observedVal, pVal)
+			r.debugContext.Infof("\n(Yi * ln Pi) + (1 - Yi) * ln (1 - Pi): %v", current)
+		}
+
+		logLikelihood += current
+	}
+
+	if r.debugMode {
+		r.debugContext.Infof("\nLog likelihood: %v", logLikelihood)
+	}
+
+	//Save the calculated log likelihood result
+	r.model.LogLikelihood = logLikelihood
+
+	return nil
+}
+
+func (r *Regression) computeDeviance() {
+	r.model.Deviance = -2 * r.model.LogLikelihood
+}
+
+func (r *Regression) Predict(testData DataPoint) (predicted float64, err error) {
+	//Create matrix for independent variables
+	numVariables := len(testData.Variables)
+	testVariables := matrix.Zeros(1, numVariables+1)
+
+	for i := 0; i < numVariables; i++ {
+		if i == 0 {
+			testVariables.Set(0, 0, 1)
+		} else {
+			testVariables.Set(0, i, testData.Variables[i-i])
+		}
+	}
+
+	//Create coefficient matrix from already generated model
+	coeffLen := len(r.model.Coefficients)
+	bVector := matrix.Zeros(coeffLen, 1)
+
+	for i := 0; i < coeffLen; i++ {
+		bVector.Set(i, 0, r.model.Coefficients[i])
+	}
+
+	//Error checking first
+	xCols := testVariables.Cols()
+	bRows := bVector.Rows()
+	if xCols != bRows {
+		return 0.0, errors.New("Error:Bad dimensions for xMatrix or bVector in Predict()")
+	}
+
+	//Calculate probability vector
+	pVector, err := r.constructProbVector(testVariables, bVector)
+	if err != nil {
+		return 0.0, err
+	}
+
+	return pVector.Get(0, 0), nil
+}
+
 func (r *Regression) TestModel(testData []DataPoint) (accuracy float64, err error) {
 	numData := len(testData)
 	numVariables := len(testData[0].Variables)
@@ -538,7 +672,7 @@ func (r *Regression) TestModel(testData []DataPoint) (accuracy float64, err erro
 
 func (r *Regression) String() string {
 	var buffer bytes.Buffer
-	buffer.WriteString("Name|Coefficient|Odds Ratio\n")
+	buffer.WriteString("Name|Coefficient|Odds Ratio|Std. Error|p-Value|Lower Confidence|Upper Confidence\n")
 
 	length := len(r.variableNames) + 1
 	for i := 0; i < length; i++ {
@@ -560,23 +694,29 @@ func (r *Regression) String() string {
 		buffer.WriteString(coeffString)
 		buffer.WriteString("|")
 		buffer.WriteString(oddsRatioString)
+		buffer.WriteString("|")
+		buffer.WriteString("UNCALCULATED")
+		buffer.WriteString("|")
+		buffer.WriteString("UNCALCULATED")
+		buffer.WriteString("|")
+		buffer.WriteString("UNCALCULATED")
+		buffer.WriteString("|")
+		buffer.WriteString("UNCALCULATED")
 		buffer.WriteString("\n")
 	}
 
-	/*
-		buffer.WriteString("Name\t\t\tCoefficient\tStd. Error\tp-Value\t\tOdds Ratio\tLower Confidence\tUpper Confidence\n")
-		for _, variable := range r.variableNames {
-			buffer.WriteString("\n")
-			buffer.WriteString(variable)
-			buffer.WriteString("\n")
-		}
+	logLikelihoodString := strconv.FormatFloat(r.model.LogLikelihood, 'f', 15, 64)
+	devianceString := strconv.FormatFloat(r.model.Deviance, 'f', 15, 64)
 
-		buffer.WriteString("\n")
-		buffer.WriteString("Log Likelihood:\n")
-		buffer.WriteString("-2 * Log Likelihood (Deviance):\n")
-		buffer.WriteString("Chi-Square Goodness of Fit:\t\t\t")
-		buffer.WriteString("P-Value:\n")
-	*/
+	buffer.WriteString("\n")
+	buffer.WriteString("Log Likelihood: ")
+	buffer.WriteString(logLikelihoodString)
+	buffer.WriteString("\n")
+	buffer.WriteString("-2 * Log Likelihood (Deviance): ")
+	buffer.WriteString(devianceString)
+	buffer.WriteString("\n")
+	buffer.WriteString("Chi-Square Goodness of Fit: ")
+	buffer.WriteString("UNCALCULATED")
 
 	return buffer.String()
 }

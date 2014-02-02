@@ -52,7 +52,7 @@ func (p *Predictor) SetMethod(method string, parameters []string) {
 func (p *Predictor) RunPrediction(w http.ResponseWriter, c appengine.Context) {
 	//Create regression instance
 	var regress Regression
-	//regress.EnableDebugMode(c)
+	regress.EnableDebugMode(c)
 
 	regress.Initialize(6)
 	regress.SetObservedName("Day 1 Retention")
