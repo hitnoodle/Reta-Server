@@ -54,6 +54,32 @@ func (p *Predictor) RunPrediction(w http.ResponseWriter, c appengine.Context) {
 	var regress Regression
 	regress.EnableDebugMode(c)
 
+	/*
+		regress.Initialize(1)
+		regress.SetObservedName("Day 1 Retention")
+		regress.SetVariableName(0, "Level")
+
+		regress.AddDataPoint(DataPoint{Result: 0.0, Variables: []float64{1.0}})
+		regress.AddDataPoint(DataPoint{Result: 0.0, Variables: []float64{2.0}})
+		regress.AddDataPoint(DataPoint{Result: 0.0, Variables: []float64{3.0}})
+		regress.AddDataPoint(DataPoint{Result: 1.0, Variables: []float64{4.0}})
+		regress.AddDataPoint(DataPoint{Result: 1.0, Variables: []float64{5.0}})
+		regress.AddDataPoint(DataPoint{Result: 1.0, Variables: []float64{6.0}})
+		regress.AddDataPoint(DataPoint{Result: 0.0, Variables: []float64{7.0}})
+		regress.AddDataPoint(DataPoint{Result: 1.0, Variables: []float64{8.0}})
+		regress.AddDataPoint(DataPoint{Result: 1.0, Variables: []float64{9.0}})
+		regress.AddDataPoint(DataPoint{Result: 1.0, Variables: []float64{10.0}})
+
+		err := regress.GenerateModel()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		model := regress.String()
+		fmt.Fprintln(w, "\n[TEST RESULT]")
+		fmt.Fprintf(w, "\n%s", model)
+	*/
+
 	regress.Initialize(6)
 	regress.SetObservedName("Day 1 Retention")
 	regress.SetVariableName(0, "Tutorial Momentum")
@@ -65,6 +91,7 @@ func (p *Predictor) RunPrediction(w http.ResponseWriter, c appengine.Context) {
 
 	//Hardcode coefficients for testing regression
 	testC := []float64{-3.4, 3.2, -5.2, -10.0, -2.3, 4.1, 4.0}
+	//testC := []float64{-1, 1, -1, -2, -1, 1, 1}
 	totalDataset := 100.0
 	random := rand.New(rand.NewSource(123))
 

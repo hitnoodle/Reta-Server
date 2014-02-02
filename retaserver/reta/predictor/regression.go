@@ -26,7 +26,7 @@ type DataPoint struct {
 type Model struct {
 	Coefficients             []float64
 	StandardErrors           []float64
-	WaldTests                []float64
+	WaldStatistics           []float64
 	OddsRatio                []float64
 	LowerConfidenceIntervals []float64
 	UpperConfidenceIntervals []float64
@@ -112,6 +112,9 @@ func (r *Regression) GenerateModel() error {
 		r.debugContext.Infof("\n-------- OBSERVED -------\n%s", trainingObserved.String())
 	}
 
+	//Initialize model arrays
+	r.model.StandardErrors = make([]float64, numVariables+1)
+
 	//Newton-Raphson algorithm stop condition
 	maxIteration := 25
 	epsilon := 0.01      //Stop if all coefficients change less than this | Algorithm has converged
@@ -125,6 +128,18 @@ func (r *Regression) GenerateModel() error {
 
 	//Compute odds ratio of generated coefficients
 	err = r.computeOddsRatio()
+	if err != nil {
+		return err
+	}
+
+	//Compute pValue of wald statistics from the generated coefficients
+	err = r.computeWaldStatistic()
+	if err != nil {
+		return err
+	}
+
+	//Compute confidence interval of generated coefficients
+	err = r.computeConfidenceInterval()
 	if err != nil {
 		return err
 	}
@@ -371,6 +386,12 @@ func (r *Regression) constructNewCoefficientsVector(oldBVector matrix.Matrix, xM
 		return nil
 	}
 
+	//Save standard error
+	errLength := len(r.model.StandardErrors)
+	for i := 0; i < errLength; i++ {
+		r.model.StandardErrors[i] = math.Sqrt(C.Get(i, i))
+	}
+
 	D := matrix.Product(C, Xt)                   // inv(X'WX)X'
 	YP := matrix.Difference(yVector, oldPVector) // y-p
 	E := matrix.Product(D, YP)                   // inv(X'WX)X'(y-p)
@@ -457,6 +478,46 @@ func (r *Regression) computeOddsRatio() error {
 	for i := 0; i < length; i++ {
 		odds := math.Exp(r.model.Coefficients[i])
 		r.model.OddsRatio[i] = odds
+	}
+
+	return nil
+}
+
+//-16325072
+//1.08577462845905
+//p-Value for wald statistics is coefficient / standard error
+func (r *Regression) computeWaldStatistic() error {
+	length := len(r.model.Coefficients)
+	if length == 0 {
+		return errors.New("Error: Coefficients in models are not generated yet")
+	}
+
+	//Assume standard error exists when coefficient is already computed
+	r.model.WaldStatistics = make([]float64, length)
+	for i := 0; i < length; i++ {
+		pvalue := r.model.Coefficients[i] / r.model.StandardErrors[i]
+		r.model.WaldStatistics[i] = pvalue
+	}
+
+	return nil
+
+}
+
+//lower = coefficient - 1.96 * standard error, upper = coefficient + 1.96 * standard error
+func (r *Regression) computeConfidenceInterval() error {
+	length := len(r.model.Coefficients)
+	if length == 0 {
+		return errors.New("Error: Coefficients in models are not generated yet")
+	}
+
+	//Assume standard error exists when coefficient is already computed
+	r.model.LowerConfidenceIntervals = make([]float64, length)
+	r.model.UpperConfidenceIntervals = make([]float64, length)
+
+	for i := 0; i < length; i++ {
+		offset := 1.96 * r.model.StandardErrors[i]
+		r.model.LowerConfidenceIntervals[i] = r.model.Coefficients[i] - offset
+		r.model.UpperConfidenceIntervals[i] = r.model.Coefficients[i] + offset
 	}
 
 	return nil
@@ -687,6 +748,10 @@ func (r *Regression) String() string {
 
 		coeffString := strconv.FormatFloat(r.model.Coefficients[i], 'f', 6, 64)
 		oddsRatioString := strconv.FormatFloat(r.model.OddsRatio[i], 'f', 6, 64)
+		stdErrString := strconv.FormatFloat(r.model.StandardErrors[i], 'f', 6, 64)
+		pValueString := strconv.FormatFloat(r.model.WaldStatistics[i], 'f', 6, 64)
+		lowerString := strconv.FormatFloat(r.model.LowerConfidenceIntervals[i], 'f', 6, 64)
+		upperString := strconv.FormatFloat(r.model.UpperConfidenceIntervals[i], 'f', 6, 64)
 
 		buffer.WriteString("\n")
 		buffer.WriteString(variableString)
@@ -695,13 +760,13 @@ func (r *Regression) String() string {
 		buffer.WriteString("|")
 		buffer.WriteString(oddsRatioString)
 		buffer.WriteString("|")
-		buffer.WriteString("UNCALCULATED")
+		buffer.WriteString(stdErrString)
 		buffer.WriteString("|")
-		buffer.WriteString("UNCALCULATED")
+		buffer.WriteString(pValueString)
 		buffer.WriteString("|")
-		buffer.WriteString("UNCALCULATED")
+		buffer.WriteString(lowerString)
 		buffer.WriteString("|")
-		buffer.WriteString("UNCALCULATED")
+		buffer.WriteString(upperString)
 		buffer.WriteString("\n")
 	}
 
