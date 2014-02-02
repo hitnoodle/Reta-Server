@@ -153,6 +153,9 @@ func (r *Regression) GenerateModel() error {
 	//Compute deviance of the model
 	r.computeDeviance()
 
+	//Compute chi-square value
+	r.computeChiSquare()
+
 	return nil
 }
 
@@ -611,6 +614,28 @@ func (r *Regression) computeDeviance() {
 	r.model.Deviance = -2 * r.model.LogLikelihood
 }
 
+func (r *Regression) computeChiSquare() {
+	//Calculate the baseline model log likelihood
+	length := len(r.dataPoints)
+	logLikelihoodBase := 0.0
+	for i := 0; i < length; i++ {
+		//Assume predicted probability of 0.5
+		//Current is always ln 0.5 because whether observed is 1 or 0, 1 - 0.5 and 0.5 is the same
+		logLikelihoodBase += math.Log(0.5)
+	}
+
+	//Calculate baseline deviance
+	devianceBase := -2 * logLikelihoodBase
+	r.debugContext.Infof("\nBase is %v and Deviance is %v", devianceBase, r.model.Deviance)
+
+	//Save the difference
+	r.model.ChiSquare = devianceBase - r.model.Deviance
+
+	if r.debugMode {
+		r.debugContext.Infof("\nLog ChiSquare: %v", r.model.ChiSquare)
+	}
+}
+
 func (r *Regression) Predict(testData DataPoint) (predicted float64, err error) {
 	//Create matrix for independent variables
 	numVariables := len(testData.Variables)
@@ -772,6 +797,7 @@ func (r *Regression) String() string {
 
 	logLikelihoodString := strconv.FormatFloat(r.model.LogLikelihood, 'f', 15, 64)
 	devianceString := strconv.FormatFloat(r.model.Deviance, 'f', 15, 64)
+	chiString := strconv.FormatFloat(r.model.ChiSquare, 'f', 15, 64)
 
 	buffer.WriteString("\n")
 	buffer.WriteString("Log Likelihood: ")
@@ -781,7 +807,10 @@ func (r *Regression) String() string {
 	buffer.WriteString(devianceString)
 	buffer.WriteString("\n")
 	buffer.WriteString("Chi-Square Goodness of Fit: ")
-	buffer.WriteString("UNCALCULATED")
+	buffer.WriteString(chiString)
+
+	buffer.WriteString("\n\n")
+	buffer.WriteString("Note: Critical chi-square value for 0.05 at 6 degree of freedom is 12.59158724")
 
 	return buffer.String()
 }
