@@ -2,6 +2,7 @@ package reta
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"time"
 
@@ -20,13 +21,13 @@ func init() {
 	http.HandleFunc("/connector", connectorHandler)
 }
 
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Reta Server\n")
-	fmt.Fprintln(w, "[Home] | Dataset | Predict | About\n\n")
+var homeTemplate = template.Must(template.ParseFiles("reta/templates/index.html"))
 
-	fmt.Fprintln(w, "Latest Events\n")
-	c := appengine.NewContext(r)
-	db.ListActivities(w, c, 10)
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	err := homeTemplate.Execute(w, "")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func datasetHandler(w http.ResponseWriter, r *http.Request) {
@@ -61,13 +62,13 @@ func predictHandler(w http.ResponseWriter, r *http.Request) {
 	predict.RunPrediction(w, c)
 }
 
-func aboutHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Reta Server\n")
-	fmt.Fprintln(w, "Home | Dataset | Predict | [About]\n\n")
+var aboutTemplate = template.Must(template.ParseFiles("reta/templates/about.html"))
 
-	fmt.Fprintln(w, "Retention Analytics - 2013\n")
-	fmt.Fprintln(w, "https://github.com/rukanishino/Reta-Server\n")
-	fmt.Fprintln(w, "By Karunia Ramadhan | @rukanishino\n")
+func aboutHandler(w http.ResponseWriter, r *http.Request) {
+	err := aboutTemplate.Execute(w, "")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func connectorHandler(w http.ResponseWriter, r *http.Request) {

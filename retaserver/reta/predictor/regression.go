@@ -53,7 +53,7 @@ func (r *Regression) Initialize(input int) {
 }
 
 func (r *Regression) EnableDebugMode(c appengine.Context) {
-	//r.debugMode = true
+	r.debugMode = true
 	r.debugContext = c
 }
 
@@ -626,7 +626,9 @@ func (r *Regression) computeChiSquare() {
 
 	//Calculate baseline deviance
 	devianceBase := -2 * logLikelihoodBase
-	r.debugContext.Infof("\nBase is %v and Deviance is %v", devianceBase, r.model.Deviance)
+	if r.debugMode {
+		r.debugContext.Infof("\nBase is %v and Deviance is %v", devianceBase, r.model.Deviance)
+	}
 
 	//Save the difference
 	r.model.ChiSquare = devianceBase - r.model.Deviance
