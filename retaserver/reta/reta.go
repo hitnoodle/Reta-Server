@@ -13,13 +13,18 @@ import (
 )
 
 func init() {
+	//Handling interaction with people
 	http.HandleFunc("/", rootHandler)
-	http.HandleFunc("/dataset", datasetHandler)
 	http.HandleFunc("/predict", predictHandler)
-	http.HandleFunc("/about", aboutHandler)
+	http.HandleFunc("/result", resultHandler)
 
+	http.HandleFunc("/oldresult", oldresultHandler)
+
+	//Handling connection with game
 	http.HandleFunc("/connector", connectorHandler)
 }
+
+/* Home page */
 
 var homeTemplate = template.Must(template.ParseFiles("reta/templates/index.html"))
 
@@ -30,16 +35,30 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func datasetHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Reta Server\n")
-	fmt.Fprintln(w, "Home | [Dataset] | Predict | About\n\n")
+/* Prediction input page */
 
-	fmt.Fprintln(w, "ERROR_MODULE_UNIMPLEMENTED\n")
-}
+var predictTemplate = template.Must(template.ParseFiles("reta/templates/predict.html"))
 
 func predictHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Reta Server\n")
-	fmt.Fprintln(w, "Home | Dataset | [Predict] | About\n\n")
+	err := predictTemplate.Execute(w, "")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+/* Prediction result page */
+
+var resultTemplate = template.Must(template.ParseFiles("reta/templates/result.html"))
+
+func resultHandler(w http.ResponseWriter, r *http.Request) {
+	err := resultTemplate.Execute(w, "")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func oldresultHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "Reta Server | Prediction Result\n")
 
 	layout := "01/02/2006"
 	beginning, _ := time.Parse(layout, "01/01/2013")
@@ -62,14 +81,7 @@ func predictHandler(w http.ResponseWriter, r *http.Request) {
 	predict.RunPrediction(w, c)
 }
 
-var aboutTemplate = template.Must(template.ParseFiles("reta/templates/about.html"))
-
-func aboutHandler(w http.ResponseWriter, r *http.Request) {
-	err := aboutTemplate.Execute(w, "")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
+/* Connection module */
 
 func connectorHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -86,7 +98,7 @@ func connectorHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	formData := r.PostForm
 
-	err = db.SubmitActivity(c, formData.Get("userid"), formData.Get("appversion"), formData.Get("data"))
+	err = db.SubmitEvent(c, formData.Get("userid"), formData.Get("appversion"), formData.Get("data"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

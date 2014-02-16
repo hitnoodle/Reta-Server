@@ -2,32 +2,31 @@ package db
 
 import (
 	"encoding/json"
-	"fmt"
-	"net/http"
 	"time"
 
 	"appengine"
 	"appengine/datastore"
 )
 
-func SubmitActivity(c appengine.Context, player string, version string, data string) error {
-	activity := Activity{
-		Player:     player,
-		Version:    version,
-		ServerTime: time.Now(),
-		Data:       data,
-	}
-
-	//TODO: Limit activity insertion (ex: 100)
-	_, err := datastore.Put(c, datastore.NewIncompleteKey(c, "Activity", nil), &activity)
-	if err != nil {
-		return err
-	}
-
-	return submitEvent(c, activity.Player, activity.Version, activity.Data)
+type Parameter struct {
+	Key   string
+	Value string
 }
 
-func submitEvent(c appengine.Context, player string, version string, data string) error {
+type Event struct {
+	Player     string
+	Version    string
+	Action     string
+	Date       time.Time
+	Parameters []Parameter
+}
+
+type TimedEvent struct {
+	Info     Event
+	Duration time.Duration
+}
+
+func SubmitEvent(c appengine.Context, player string, version string, data string) error {
 	b := []byte(data)
 
 	var f interface{}
@@ -106,25 +105,4 @@ func submitEvent(c appengine.Context, player string, version string, data string
 	}
 
 	return nil
-}
-
-func ListActivities(w http.ResponseWriter, c appengine.Context, limit int) {
-	q := datastore.NewQuery("Activity").Order("-ServerTime").Limit(limit)
-	for t := q.Run(c); ; {
-		var act Activity
-
-		_, err := t.Next(&act)
-		if err == datastore.Done {
-			break
-		}
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		fmt.Fprintf(w, "Activity: %v\n\n", act)
-	}
-
-	return
 }

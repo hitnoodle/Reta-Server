@@ -1,0 +1,119 @@
+<!DOCTYPE HTML>
+<!--
+	Telephasic 1.1 by HTML5 UP
+	html5up.net | @n33co
+	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html>
+	<head>
+		<title>Reta Server | Retention Analytics</title>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta name="description" content="" />
+		<meta name="keywords" content="" />
+		<link href="http://fonts.googleapis.com/css?family=Source+Sans+Pro:300,600" rel="stylesheet" type="text/css" />
+		<!--[if lte IE 8]><script src="js/html5shiv.js"></script><![endif]-->
+		<script src="/js/jquery.min.js"></script>
+		<script src="/js/jquery.dropotron.min.js"></script>
+		<script src="/js/skel.min.js"></script>
+		<script src="/js/skel-panels.min.js"></script>
+		<script src="/js/init.js"></script>
+		<noscript>
+			<link rel="stylesheet" href="/css/skel-noscript.css" />
+			<link rel="stylesheet" href="/css/style.css" />
+			<link rel="stylesheet" href="/css/style-n1.css" />
+		</noscript>
+	</head>
+	<body class="no-sidebar">
+
+			<!-- Header Wrapper -->
+			<div id="header-wrapper">
+						
+					<!-- Header -->
+					<div id="header" class="container">
+						
+							<!-- Logo -->
+							<h1 id="logo"><a href="/">Reta Server</a></h1>
+
+					</div>
+
+			</div>
+
+			<!-- Main Wrapper -->
+			<div class="wrapper">
+
+				<div class="container">
+					<div class="row" id="main">
+						<div class="12u">
+					
+							<header>
+								<h2>Create Prediction Model</h2>
+								<span>Model will be created using Logistic Regression analysis</span>
+							</header>
+
+							<form method="post" action="/result">
+
+								<div class="row half">
+									<div class="5u">
+										<h3> Start Date</h3>
+									</div>
+									<div class="5u">
+										<h3> End Date</h3>
+									</div>
+								</div>
+
+								<div class="row half">
+									<div class="5u">
+										<input name="startdate" value="01/01/2014" type="text" class="text" />
+									</div>
+									<div class="5u">
+										<input name="enddate" value="16/02/2014" type="text" class="text" />
+									</div>
+								</div>
+
+								<div class="row half">
+									<div class="5u">
+										<h3> Method</h3>
+									</div>
+									<div class="5u">
+										<h3> Newton-Raphson Iteration</h3>
+									</div>
+								</div>
+
+								<div class="row half">
+									<div class="5u">
+										<input name="method" placeholder="IRLS - Newton Raphson" type="text" class="text" disabled/>
+									</div>
+									<div class="5u">
+										<input name="iteration" value="20" type="text" class="text" />
+									</div>
+								</div>
+
+								<br />
+								<br />
+
+								<div class="12u">
+									<ul class="actions">
+										<li>
+											<input  name="submission" value="Generate!" type="submit" class="button"/>
+										</li>
+									</ul>
+								</div>
+								
+							</form>
+
+						</div>
+					</div>
+
+					<!-- Copyright -->
+					<div id="copyright" class="container">
+						<ul class="menu">
+							<li>&copy; Retention Analytics (2014). All rights reserved.</li>
+							<li>Programming: <a href="https://twitter.com/rukanishino">Karunia Ramadhan</a></li>
+							<li>Design: Telephatic by <a href="http://html5up.net/">HTML5 UP</a></li>
+						</ul>
+					</div>
+
+			</div>
+
+	</body>
+</html>
