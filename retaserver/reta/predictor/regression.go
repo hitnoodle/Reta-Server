@@ -79,7 +79,7 @@ func (r *Regression) AddDataPoint(data DataPoint) error {
 	return nil
 }
 
-func (r *Regression) GenerateModel() error {
+func (r *Regression) GenerateModel(iteration int) error {
 	if !r.initialized {
 		return errors.New("Error: Need some data to perform regression")
 	}
@@ -116,7 +116,7 @@ func (r *Regression) GenerateModel() error {
 	r.model.StandardErrors = make([]float64, numVariables+1)
 
 	//Newton-Raphson algorithm stop condition
-	maxIteration := 25
+	maxIteration := iteration
 	epsilon := 0.01      //Stop if all coefficients change less than this | Algorithm has converged
 	jumpFactor := 1000.0 //Stop if any new coefficients jumps too much | Algorithm spinning out of control
 

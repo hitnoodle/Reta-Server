@@ -60,12 +60,12 @@ func resultHandler(w http.ResponseWriter, r *http.Request) {
 func oldresultHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Reta Server | Prediction Result\n")
 
-	layout := "01/02/2006"
-	beginning, _ := time.Parse(layout, "01/01/2013")
-	today := time.Now().Format(layout)
+	layout := "02/01/2006"
+	beginning, _ := time.Parse(layout, "17/02/2014")
+	ending, _ := time.Parse(layout, "28/02/2014")
 
 	fmt.Fprintln(w, "Model Generation\n")
-	fmt.Fprintln(w, "From 01/01/2014 to", today)
+	fmt.Fprintln(w, "From 17/02/2014 to 28/02/2014")
 	fmt.Fprintln(w, "Training - Test Dataset Percentage: 80% - 20%")
 	fmt.Fprintln(w, "Method: Logistic Regression")
 	fmt.Fprintln(w, "Technique: Iteratively Reweighted Least Squares | Newton-Raphson")
@@ -75,9 +75,9 @@ func oldresultHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
 	var predict predictor.Predictor
-	predict.SetInputDates(beginning, time.Now())
+	predict.SetInputDates(beginning, ending)
 	predict.SetDatasetPercentage(80, 20)
-	predict.SetMethod("Linear Regression", nil)
+	predict.SetIteration(20)
 	predict.RunPrediction(w, c)
 }
 

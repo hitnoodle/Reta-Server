@@ -51,7 +51,7 @@ func SubmitEvent(c appengine.Context, player string, version string, data string
 			ev.Action = action
 		} else if k == "Time" {
 			//Convert to time
-			layout := "01/02/2006 03:04:05"
+			layout := "01/02/2006 15:04:05"
 			clienttime := v.(string)
 			ev.Date, _ = time.Parse(layout, clienttime)
 		} else if k == "Parameters" {
@@ -103,6 +103,34 @@ func SubmitEvent(c appengine.Context, player string, version string, data string
 			return err
 		}
 	}
+
+	return nil
+}
+
+func GetAllEvents(c appengine.Context, begin time.Time, end time.Time, events *[]Event) error {
+	q := datastore.NewQuery("Event").Filter("Date >=", begin).Filter("Date <=", end).Order("Date")
+
+	var eventsData []Event
+	_, err := q.GetAll(c, &eventsData)
+	if err != nil {
+		return err
+	}
+
+	*events = eventsData
+
+	return nil
+}
+
+func GetAllTimedEvents(c appengine.Context, begin time.Time, end time.Time, timedevents *[]TimedEvent) error {
+	q := datastore.NewQuery("TimedEvent").Filter("Date >=", begin).Filter("Date <=", end).Order("Date")
+
+	var timedeventsData []TimedEvent
+	_, err := q.GetAll(c, &timedeventsData)
+	if err != nil {
+		return err
+	}
+
+	*timedevents = timedeventsData
 
 	return nil
 }

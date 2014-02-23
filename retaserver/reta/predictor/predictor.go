@@ -17,12 +17,7 @@ type Predictor struct {
 	endDate                   time.Time
 	trainingDatasetPercentage int
 	testingDatasetPercentage  int
-	predictionMethod          PredictionMethod
-}
-
-type PredictionMethod struct {
-	Method     string
-	Parameters []string
+	iteration                 int
 }
 
 func (p *Predictor) SetInputDates(begin time.Time, end time.Time) {
@@ -41,8 +36,8 @@ func (p *Predictor) SetDatasetPercentage(training int, testing int) error {
 	return nil
 }
 
-func (p *Predictor) SetMethod(method string, parameters []string) {
-	p.predictionMethod = PredictionMethod{method, parameters}
+func (p *Predictor) SetIteration(num int) {
+	p.iteration = num
 }
 
 //1. Get all user data from begin to end dates
@@ -50,6 +45,13 @@ func (p *Predictor) SetMethod(method string, parameters []string) {
 //3. Use training data to create model using prediction method
 //4. Use testing data to test prediction
 func (p *Predictor) RunPrediction(w http.ResponseWriter, c appengine.Context) {
+	//Get playerinfo
+	var playerinfos []PlayerInfo
+	err := GetPlayerInformation(c, p.beginDate, p.endDate, &playerinfos)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
 	//Create regression instance
 	var regress Regression
 	//regress.EnableDebugMode(c)
@@ -125,7 +127,7 @@ func (p *Predictor) RunPrediction(w http.ResponseWriter, c appengine.Context) {
 		regress.AddDataPoint(datapoint)
 	}
 
-	err := regress.GenerateModel()
+	err = regress.GenerateModel(p.iteration)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
