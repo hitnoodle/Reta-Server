@@ -122,7 +122,7 @@ func GetAllEvents(c appengine.Context, begin time.Time, end time.Time, events *[
 }
 
 func GetAllTimedEvents(c appengine.Context, begin time.Time, end time.Time, timedevents *[]TimedEvent) error {
-	q := datastore.NewQuery("TimedEvent").Filter("Date >=", begin).Filter("Date <=", end).Order("Date")
+	q := datastore.NewQuery("Timed Event").Filter("Info.Date >=", begin).Filter("Info.Date <=", end).Order("Info.Date")
 
 	var timedeventsData []TimedEvent
 	_, err := q.GetAll(c, &timedeventsData)

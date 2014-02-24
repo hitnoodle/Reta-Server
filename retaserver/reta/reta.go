@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"time"
 
 	"appengine"
@@ -51,7 +52,26 @@ func predictHandler(w http.ResponseWriter, r *http.Request) {
 var resultTemplate = template.Must(template.ParseFiles("reta/templates/result.html"))
 
 func resultHandler(w http.ResponseWriter, r *http.Request) {
-	err := resultTemplate.Execute(w, "")
+	//Create appengine context
+	c := appengine.NewContext(r)
+
+	//Set dates
+	layout := "02/01/2006"
+	beginning, _ := time.Parse(layout, r.FormValue("startdate"))
+	ending, _ := time.Parse(layout, r.FormValue("enddate"))
+
+	//Set iteration
+	iteration, _ := strconv.ParseInt((r.FormValue("iteration")), 10, 32)
+
+	//Run prediction
+	var predict predictor.Predictor
+	predict.SetInputDates(beginning, ending)
+	predict.SetDatasetPercentage(80, 20)
+	predict.SetIteration(int(iteration))
+	prediction := predict.RunPrediction(w, c)
+
+	//Show prediction result on result page
+	err := resultTemplate.Execute(w, template.HTML(prediction))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -69,8 +89,7 @@ func oldresultHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Training - Test Dataset Percentage: 80% - 20%")
 	fmt.Fprintln(w, "Method: Logistic Regression")
 	fmt.Fprintln(w, "Technique: Iteratively Reweighted Least Squares | Newton-Raphson")
-
-	fmt.Fprintln(w, "\n[TEST]")
+	fmt.Fprintln(w, "Iteration: 20 times")
 
 	c := appengine.NewContext(r)
 

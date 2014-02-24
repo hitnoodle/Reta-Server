@@ -1,10 +1,9 @@
 package predictor
 
 import (
-	"fmt"
-	"math"
-	"math/rand"
+	"bytes"
 	"net/http"
+	"strconv"
 	"time"
 
 	"appengine"
@@ -44,45 +43,36 @@ func (p *Predictor) SetIteration(num int) {
 //2. Slice it using percentage
 //3. Use training data to create model using prediction method
 //4. Use testing data to test prediction
-func (p *Predictor) RunPrediction(w http.ResponseWriter, c appengine.Context) {
+//5. Return model and prediction as HTML
+func (p *Predictor) RunPrediction(w http.ResponseWriter, c appengine.Context) string {
+	//Initialize HTML result string
+	var buffer bytes.Buffer
+
+	//Header
+	buffer.WriteString("<header>")
+	buffer.WriteString("<h2>Logistic Regression Model for Day-1 Retention</h2>")
+	buffer.WriteString("<span>Model created from ")
+	buffer.WriteString(p.beginDate.String())
+	buffer.WriteString(" to ")
+	buffer.WriteString(p.endDate.String())
+	buffer.WriteString("</span></header>")
+
 	//Get playerinfo
 	var playerinfos []PlayerInfo
 	err := GetPlayerInformation(c, p.beginDate, p.endDate, &playerinfos)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return err.Error()
 	}
 
 	//Create regression instance
 	var regress Regression
 	//regress.EnableDebugMode(c)
 
-	/*
-		regress.Initialize(1)
-		regress.SetObservedName("Day 1 Retention")
-		regress.SetVariableName(0, "Level")
-
-		regress.AddDataPoint(DataPoint{Result: 0.0, Variables: []float64{1.0}})
-		regress.AddDataPoint(DataPoint{Result: 0.0, Variables: []float64{2.0}})
-		regress.AddDataPoint(DataPoint{Result: 0.0, Variables: []float64{3.0}})
-		regress.AddDataPoint(DataPoint{Result: 1.0, Variables: []float64{4.0}})
-		regress.AddDataPoint(DataPoint{Result: 1.0, Variables: []float64{5.0}})
-		regress.AddDataPoint(DataPoint{Result: 1.0, Variables: []float64{6.0}})
-		regress.AddDataPoint(DataPoint{Result: 0.0, Variables: []float64{7.0}})
-		regress.AddDataPoint(DataPoint{Result: 1.0, Variables: []float64{8.0}})
-		regress.AddDataPoint(DataPoint{Result: 1.0, Variables: []float64{9.0}})
-		regress.AddDataPoint(DataPoint{Result: 1.0, Variables: []float64{10.0}})
-
-		err := regress.GenerateModel()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-
-		model := regress.String()
-		fmt.Fprintln(w, "\n[TEST RESULT]")
-		fmt.Fprintf(w, "\n%s", model)
-	*/
-
+	//Init
 	regress.Initialize(6)
+	//regress.Initialize(2)
+
+	//Set variable names
 	regress.SetObservedName("Day 1 Retention")
 	regress.SetVariableName(0, "Tutorial Momentum")
 	regress.SetVariableName(1, "Level Momentum")
@@ -90,87 +80,97 @@ func (p *Predictor) RunPrediction(w http.ResponseWriter, c appengine.Context) {
 	regress.SetVariableName(3, "Social Activity")
 	regress.SetVariableName(4, "Progression")
 	regress.SetVariableName(5, "Level")
+	//regress.SetVariableName(0, "Tutorial Momentum")
+	//regress.SetVariableName(1, "Gameplay Consumed")
 
-	//Hardcode coefficients for testing regression
-	testC := []float64{-3.4, 3.2, -5.2, -10.0, -2.3, 4.1, 4.0}
-	//testC := []float64{-1, 1, -1, -2, -1, 1, 1}
-	totalDataset := 100.0
-	random := rand.New(rand.NewSource(123))
+	//Calculate number of data
+	totalDataset := len(playerinfos)
+	trainingDataNum := int(float64(p.trainingDatasetPercentage) / 100.0 * float64(totalDataset))
+	testDataNum := totalDataset - trainingDataNum
 
-	fmt.Fprintf(w, "\nHardcoded Test Function:%v", testC)
-	fmt.Fprintf(w, "\nTotal Dataset: %v\n", totalDataset)
+	//Dataset
+	buffer.WriteString("<div>Total Dataset: ")
+	buffer.WriteString(strconv.FormatInt(int64(totalDataset), 10))
+	buffer.WriteString("</div>")
+	buffer.WriteString("<div>Training vs Testing: ")
+	buffer.WriteString(strconv.FormatInt(int64(trainingDataNum), 10))
+	buffer.WriteString(" vs ")
+	buffer.WriteString(strconv.FormatInt(int64(testDataNum), 10))
+	buffer.WriteString("</div>")
+	buffer.WriteString("<br/>")
 
-	trainingDataNum := int(0.8 * totalDataset)
+	//Add training data
 	for i := 0; i < trainingDataNum; i++ {
-		//Randomize training data
-		intercept := 1.0
-		tutorialMomentum := random.Float64() * 3     //Between 0 - 3 minutes per tutorial
-		levelMomentum := random.Float64() * 10       //Between 0 - 10 minutes per level
-		gameplayConsumed := float64(random.Intn(50)) //Between 0 - 50
-		socialActivity := float64(random.Intn(20))   //Between 0 - 20
-		progression := random.Float64() * 80         //Between 0 - 80% in the first day
-		level := float64(random.Intn(20))            //Between Level 0 - 20 in the first day
-
-		//Calculate training results with hardcode functions above
-		z := (testC[0] * intercept) + (testC[1] * tutorialMomentum) + (testC[2] * levelMomentum) + (testC[3] * gameplayConsumed) + (testC[4] * socialActivity) + (testC[5] * progression) + (testC[6] * level)
-		p := 1.0 / (1.0 + math.Exp(-z))
-
+		//Convert retention to float
 		var retented float64
-		if p < 0.5 {
-			retented = 0.0
-		} else {
+		if playerinfos[i].Day1Retention {
 			retented = 1.0
+		} else {
+			retented = 0.0
 		}
+
+		//Convert metric to float
+		tutorialMomentum := playerinfos[i].TutorialMomentum
+		levelMomentum := playerinfos[i].LevelMomentum
+		gameplayConsumed := float64(playerinfos[i].GameplayConsumed)
+		socialActivity := float64(playerinfos[i].SocialActivities)
+		progression := playerinfos[i].Progression
+		level := float64(playerinfos[i].Level)
 
 		//Create and add datapoints
 		datapoint := DataPoint{Result: retented, Variables: []float64{tutorialMomentum, levelMomentum, gameplayConsumed, socialActivity, progression, level}}
-		regress.AddDataPoint(datapoint)
+		//datapoint := DataPoint{Result: retented, Variables: []float64{tutorialMomentum, gameplayConsumed}}
+		err = regress.AddDataPoint(datapoint)
+		if err != nil {
+			return err.Error()
+		}
 	}
 
+	//Generate logistic regression model
 	err = regress.GenerateModel(p.iteration)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return err.Error()
 	}
 
-	//Print generated model
-	model := regress.String()
-	fmt.Fprintln(w, "\n[TEST RESULT]")
-	fmt.Fprintf(w, "\n%s", model)
+	//Keep generated model
+	model := regress.StringHTML()
+	buffer.WriteString(model)
 
-	//Randomize testing data
-	testDataNum := int(0.2 * totalDataset)
+	//Add testing data
 	testDatapoint := make([]DataPoint, testDataNum)
-	for i := 0; i < testDataNum; i++ {
-		//Randomize training data
-		intercept := 1.0
-		tutorialMomentum := random.Float64()         //Between 0 - 1 minutes per tutorial
-		levelMomentum := random.Float64() * 10       //Between 0 - 10 minutes per level
-		gameplayConsumed := float64(random.Intn(50)) //Between 0 - 50
-		socialActivity := float64(random.Intn(20))   //Between 0 - 20
-		progression := random.Float64() * 80         //Between 0 - 80% in the first day
-		level := float64(random.Intn(20))            //Between Level 0 - 20 in the first day
-
-		//Calculate training results with hardcode functions above
-		z := (testC[0] * intercept) + (testC[1] * tutorialMomentum) + (testC[2] * levelMomentum) + (testC[3] * gameplayConsumed) + (testC[4] * socialActivity) + (testC[5] * progression) + (testC[6] * level)
-		p := 1.0 / (1.0 - math.Exp(-z))
-
+	for i := trainingDataNum; i < totalDataset; i++ {
+		//Convert retention to float
 		var retented float64
-		if p < 0.5 {
-			retented = 0.0
-		} else {
+		if playerinfos[i].Day1Retention {
 			retented = 1.0
+		} else {
+			retented = 0.0
 		}
+
+		//Convert metric to float
+		tutorialMomentum := playerinfos[i].TutorialMomentum
+		levelMomentum := playerinfos[i].LevelMomentum
+		gameplayConsumed := float64(playerinfos[i].GameplayConsumed)
+		socialActivity := float64(playerinfos[i].SocialActivities)
+		progression := playerinfos[i].Progression
+		level := float64(playerinfos[i].Level)
 
 		//Create and add datapoints
 		datapoint := DataPoint{Result: retented, Variables: []float64{tutorialMomentum, levelMomentum, gameplayConsumed, socialActivity, progression, level}}
-		testDatapoint[i] = datapoint
+		//datapoint := DataPoint{Result: retented, Variables: []float64{tutorialMomentum, gameplayConsumed}}
+		testDatapoint[i-trainingDataNum] = datapoint
 	}
 
+	//Test prediction
 	var prediction float64
 	prediction, err = regress.TestModel(testDatapoint)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return err.Error()
 	}
 
-	fmt.Fprintf(w, "\n\nPrediction result percentage (cross-validation with testing data): %.2f", prediction)
+	buffer.WriteString("<br/><div><h3>Prediction result percentage (cross-validation with testing data): ")
+	buffer.WriteString(strconv.FormatFloat(prediction, 'f', 2, 64))
+	buffer.WriteString(" </div>")
+
+	return buffer.String()
 }

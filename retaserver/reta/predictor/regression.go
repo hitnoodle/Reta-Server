@@ -816,3 +816,101 @@ func (r *Regression) String() string {
 
 	return buffer.String()
 }
+
+func (r *Regression) StringHTML() string {
+	//HTML string buffer
+	var buffer bytes.Buffer
+
+	//Table header
+	buffer.WriteString("<table>")
+	buffer.WriteString("<tr>")
+	buffer.WriteString("<td>Name</td>")
+	buffer.WriteString("<td>Coefficient</td>")
+	buffer.WriteString("<td>Odds Ratio</td>")
+	buffer.WriteString("<td>Std. Error</td>")
+	buffer.WriteString("<td>p-Value</td>")
+	buffer.WriteString("<td>Lower Confidence</td>")
+	buffer.WriteString("<td>Upper Confidence</td>")
+	buffer.WriteString("</tr>")
+
+	//Table attributes
+	length := len(r.variableNames) + 1
+	for i := 0; i < length; i++ {
+		//Decrease one for fun
+		index := i - 1
+
+		//Independent variable names
+		var variableString string
+		if index == -1 {
+			variableString = "Intercept"
+		} else {
+			variableString = r.variableNames[index]
+		}
+
+		//Convert attributes to string
+		coeffString := strconv.FormatFloat(r.model.Coefficients[i], 'f', 6, 64)
+		oddsRatioString := strconv.FormatFloat(r.model.OddsRatio[i], 'f', 6, 64)
+		stdErrString := strconv.FormatFloat(r.model.StandardErrors[i], 'f', 6, 64)
+		pValueString := strconv.FormatFloat(r.model.WaldStatistics[i], 'f', 6, 64)
+		lowerString := strconv.FormatFloat(r.model.LowerConfidenceIntervals[i], 'f', 6, 64)
+		upperString := strconv.FormatFloat(r.model.UpperConfidenceIntervals[i], 'f', 6, 64)
+
+		//Header
+		buffer.WriteString("<tr>")
+
+		//Model attributes
+		buffer.WriteString("<td>")
+		buffer.WriteString(variableString)
+		buffer.WriteString("</td>")
+
+		buffer.WriteString("<td>")
+		buffer.WriteString(coeffString)
+		buffer.WriteString("</td>")
+
+		buffer.WriteString("<td>")
+		buffer.WriteString(oddsRatioString)
+		buffer.WriteString("</td>")
+
+		buffer.WriteString("<td>")
+		buffer.WriteString(stdErrString)
+		buffer.WriteString("</td>")
+
+		buffer.WriteString("<td>")
+		buffer.WriteString(pValueString)
+		buffer.WriteString("</td>")
+
+		buffer.WriteString("<td>")
+		buffer.WriteString(lowerString)
+		buffer.WriteString("</td>")
+
+		buffer.WriteString("<td>")
+		buffer.WriteString(upperString)
+		buffer.WriteString("</td>")
+
+		//Footer
+		buffer.WriteString("</tr>")
+	}
+
+	//End table
+	buffer.WriteString("</table>")
+
+	//Calculate model performance
+	logLikelihoodString := strconv.FormatFloat(r.model.LogLikelihood, 'f', 15, 64)
+	devianceString := strconv.FormatFloat(r.model.Deviance, 'f', 15, 64)
+	chiString := strconv.FormatFloat(r.model.ChiSquare, 'f', 15, 64)
+
+	//Model performance
+	buffer.WriteString("<div>Log Likelihood: ")
+	buffer.WriteString(logLikelihoodString)
+	buffer.WriteString("</div>")
+	buffer.WriteString("<div>-2 * Log Likelihood (Deviance): ")
+	buffer.WriteString(devianceString)
+	buffer.WriteString("</div>")
+	buffer.WriteString("<div>Chi-Square Goodness of Fit: ")
+	buffer.WriteString(chiString)
+	buffer.WriteString("</div>")
+	buffer.WriteString("<br/>")
+	buffer.WriteString("<div>Note: Critical chi-square value for 0.05 at 6 degree of freedom is 12.59158724</div>")
+
+	return buffer.String()
+}
