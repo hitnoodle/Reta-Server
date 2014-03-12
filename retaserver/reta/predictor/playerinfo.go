@@ -20,24 +20,27 @@ type PlayerInfo struct {
 	Day1Retention    bool
 }
 
-func GetPlayerInformation(c appengine.Context, begin time.Time, end time.Time, infos *[]PlayerInfo) error {
+func GetPlayerInformation(c appengine.Context, begin time.Time, end time.Time, infos *[]PlayerInfo) (int, error) {
 	//Get events
 	var eventsData []db.Event
 	err := db.GetAllEvents(c, begin, end, &eventsData)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	//Get timed events
 	var timedeventsData []db.TimedEvent
 	err = db.GetAllTimedEvents(c, begin, end, &timedeventsData)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	//Create result array
 	var playerinfos []PlayerInfo
 	playerlen := len(playerinfos)
+
+	//How many are retented
+	retented := 0
 
 	length := len(eventsData)
 	for i := 0; i < length; i++ {
@@ -125,6 +128,7 @@ func GetPlayerInformation(c appengine.Context, begin time.Time, end time.Time, i
 		duration := last.Sub(tomorrow)
 		if duration.Hours() >= 0 {
 			playerinfos[i].Day1Retention = true
+			retented += 1
 		}
 
 		//Prepare data for Level Momentum
@@ -149,10 +153,11 @@ func GetPlayerInformation(c appengine.Context, begin time.Time, end time.Time, i
 		playerinfos[i].LevelMomentum = levelduration / float64(level)
 		//playerinfos[i].Level = level
 
-		//c.Debugf("Player:\n%+v\n", playerinfos[i])
+		c.Debugf("Player:\n%+v\n", playerinfos[i])
+		c.Debugf("Retented:\n%v\n", playerinfos[i].Day1Retention)
 	}
 
 	*infos = playerinfos
 
-	return nil
+	return retented, nil
 }

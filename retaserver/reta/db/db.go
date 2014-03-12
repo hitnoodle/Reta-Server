@@ -111,10 +111,49 @@ func GetAllEvents(c appengine.Context, begin time.Time, end time.Time, events *[
 	q := datastore.NewQuery("Event").Filter("Date >=", begin).Filter("Date <=", end).Order("Date")
 
 	var eventsData []Event
+
 	_, err := q.GetAll(c, &eventsData)
 	if err != nil {
 		return err
 	}
+
+	/*
+		done := false
+		var cursor *datastore.Cursor
+		for !done {
+			q = q.Limit(1000)
+			if cursor != nil {
+				q = q.Start(*cursor)
+			}
+
+			t := q.Run(c)
+			output := 0
+			for true {
+				var ev Event
+				_, err := t.Next(&ev)
+				if err == datastore.Done {
+					break
+				}
+
+				if err != nil {
+					return err
+				}
+
+				eventsData = append(eventsData, ev)
+				output++
+			}
+
+			if output == 0 {
+				done = true
+			} else {
+				newCursor, err := t.Cursor()
+				if err != nil {
+					return err
+				}
+				cursor = &newCursor
+			}
+		}
+	*/
 
 	*events = eventsData
 
@@ -125,10 +164,49 @@ func GetAllTimedEvents(c appengine.Context, begin time.Time, end time.Time, time
 	q := datastore.NewQuery("Timed Event").Filter("Info.Date >=", begin).Filter("Info.Date <=", end).Order("Info.Date")
 
 	var timedeventsData []TimedEvent
+
 	_, err := q.GetAll(c, &timedeventsData)
 	if err != nil {
 		return err
 	}
+
+	/*
+		done := false
+		var cursor *datastore.Cursor
+		for !done {
+			q = q.Limit(1000)
+			if cursor != nil {
+				q = q.Start(*cursor)
+			}
+
+			t := q.Run(c)
+			output := 0
+			for true {
+				var tev TimedEvent
+				_, err := t.Next(&tev)
+				if err == datastore.Done {
+					break
+				}
+
+				if err != nil {
+					return err
+				}
+
+				timedeventsData = append(timedeventsData, tev)
+				output++
+			}
+
+			if output == 0 {
+				done = true
+			} else {
+				newCursor, err := t.Cursor()
+				if err != nil {
+					return err
+				}
+				cursor = &newCursor
+			}
+		}
+	*/
 
 	*timedevents = timedeventsData
 

@@ -192,7 +192,8 @@ func (r *Regression) computeBestCoefficients(xTrainingVector matrix.Matrix, yTra
 	}
 
 	//Current best coefficients
-	bestCoeffVector := coeffVector
+	var bestCoeffVector matrix.Matrix
+	bestCoeffVector = coeffVector.Copy()
 
 	//A column vector of the probabilities of each row using the b[i] values and the x[i] values
 	pVector, err := r.constructProbVector(xTrainingVector, coeffVector)
@@ -293,7 +294,7 @@ func (r *Regression) computeBestCoefficients(xTrainingVector matrix.Matrix, yTra
 			}
 
 			coeffVector = newCoeffVector.DenseMatrix() //Update best
-			bestCoeffVector = coeffVector              //Update current
+			bestCoeffVector = coeffVector.Copy()       //Update current
 			mse = newMSE                               //Update current MSE
 			timesWorse = 0                             //Reset counter
 		}

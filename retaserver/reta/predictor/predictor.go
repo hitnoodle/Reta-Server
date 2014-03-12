@@ -2,6 +2,7 @@ package predictor
 
 import (
 	"bytes"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"time"
@@ -59,14 +60,16 @@ func (p *Predictor) RunPrediction(w http.ResponseWriter, c appengine.Context) st
 
 	//Get playerinfo
 	var playerinfos []PlayerInfo
-	err := GetPlayerInformation(c, p.beginDate, p.endDate, &playerinfos)
+	retented, err := GetPlayerInformation(c, p.beginDate, p.endDate, &playerinfos)
 	if err != nil {
 		return err.Error()
 	}
 
+	c.Debugf("Total Retented Player:\n%v\n", retented)
+
 	//Create regression instance
 	var regress Regression
-	//regress.EnableDebugMode(c)
+	regress.EnableDebugMode(c)
 
 	//Init
 	regress.Initialize(6)
@@ -85,8 +88,64 @@ func (p *Predictor) RunPrediction(w http.ResponseWriter, c appengine.Context) st
 
 	//Calculate number of data
 	totalDataset := len(playerinfos)
-	trainingDataNum := int(float64(p.trainingDatasetPercentage) / 100.0 * float64(totalDataset))
-	testDataNum := totalDataset - trainingDataNum
+
+	//Shuffle so we get good result
+	trainingRetented := int(float64(p.trainingDatasetPercentage) / 100.0 * float64(retented))
+	trainingNotRetented := int(float64(p.trainingDatasetPercentage) / 100.0 * float64(totalDataset-retented))
+	testRetented := retented - trainingRetented
+	testNotRetented := (totalDataset - retented) - trainingNotRetented
+
+	c.Debugf("Training Retented:\n%v\n", trainingRetented)
+	c.Debugf("Training Not-Retented:\n%v\n", trainingNotRetented)
+	c.Debugf("Testing Retented:\n%v\n", testRetented)
+	c.Debugf("Testing Not-Retented:\n%v\n", testNotRetented)
+
+	trainingInfos := make([]PlayerInfo, trainingRetented+trainingNotRetented)
+	testInfos := make([]PlayerInfo, testRetented+testNotRetented)
+
+	trainingIndex := 0
+	testIndex := 0
+
+	for i := 0; i < totalDataset; i++ {
+		if playerinfos[i].Day1Retention {
+			if trainingRetented > 0 {
+				trainingInfos[trainingIndex] = playerinfos[i]
+				trainingIndex += 1
+				trainingRetented -= 1
+			} else {
+				testInfos[testIndex] = playerinfos[i]
+				testIndex += 1
+				testRetented -= 1
+			}
+		} else {
+			if trainingNotRetented > 0 {
+				trainingInfos[trainingIndex] = playerinfos[i]
+				trainingIndex += 1
+				trainingNotRetented -= 1
+			} else {
+				testInfos[testIndex] = playerinfos[i]
+				testIndex += 1
+				testNotRetented -= 1
+			}
+		}
+	}
+
+	for i := range trainingInfos {
+		j := rand.Intn(i + 1)
+		trainingInfos[i], trainingInfos[j] = trainingInfos[j], trainingInfos[i]
+	}
+
+	for i := range testInfos {
+		j := rand.Intn(i + 1)
+		testInfos[i], testInfos[j] = testInfos[j], testInfos[i]
+	}
+
+	trainingDataNum := len(trainingInfos)
+	testDataNum := len(testInfos)
+
+	c.Debugf("Total Dataset:\n%v\n", totalDataset)
+	c.Debugf("Training Data:\n%v\n", trainingDataNum)
+	c.Debugf("Testing Data:\n%v\n", testDataNum)
 
 	//Dataset
 	buffer.WriteString("<div>Total Dataset: ")
@@ -103,19 +162,19 @@ func (p *Predictor) RunPrediction(w http.ResponseWriter, c appengine.Context) st
 	for i := 0; i < trainingDataNum; i++ {
 		//Convert retention to float
 		var retented float64
-		if playerinfos[i].Day1Retention {
+		if trainingInfos[i].Day1Retention {
 			retented = 1.0
 		} else {
 			retented = 0.0
 		}
 
 		//Convert metric to float
-		tutorialMomentum := playerinfos[i].TutorialMomentum
-		levelMomentum := playerinfos[i].LevelMomentum
-		gameplayConsumed := float64(playerinfos[i].GameplayConsumed)
-		socialActivity := float64(playerinfos[i].SocialActivities)
-		progression := playerinfos[i].Progression
-		level := float64(playerinfos[i].Level)
+		tutorialMomentum := trainingInfos[i].TutorialMomentum
+		levelMomentum := trainingInfos[i].LevelMomentum
+		gameplayConsumed := float64(trainingInfos[i].GameplayConsumed)
+		socialActivity := float64(trainingInfos[i].SocialActivities)
+		progression := trainingInfos[i].Progression
+		level := float64(trainingInfos[i].Level)
 
 		//Create and add datapoints
 		datapoint := DataPoint{Result: retented, Variables: []float64{tutorialMomentum, levelMomentum, gameplayConsumed, socialActivity, progression, level}}
@@ -138,27 +197,27 @@ func (p *Predictor) RunPrediction(w http.ResponseWriter, c appengine.Context) st
 
 	//Add testing data
 	testDatapoint := make([]DataPoint, testDataNum)
-	for i := trainingDataNum; i < totalDataset; i++ {
+	for i := 0; i < testDataNum; i++ {
 		//Convert retention to float
 		var retented float64
-		if playerinfos[i].Day1Retention {
+		if testInfos[i].Day1Retention {
 			retented = 1.0
 		} else {
 			retented = 0.0
 		}
 
 		//Convert metric to float
-		tutorialMomentum := playerinfos[i].TutorialMomentum
-		levelMomentum := playerinfos[i].LevelMomentum
-		gameplayConsumed := float64(playerinfos[i].GameplayConsumed)
-		socialActivity := float64(playerinfos[i].SocialActivities)
-		progression := playerinfos[i].Progression
-		level := float64(playerinfos[i].Level)
+		tutorialMomentum := testInfos[i].TutorialMomentum
+		levelMomentum := testInfos[i].LevelMomentum
+		gameplayConsumed := float64(testInfos[i].GameplayConsumed)
+		socialActivity := float64(testInfos[i].SocialActivities)
+		progression := testInfos[i].Progression
+		level := float64(testInfos[i].Level)
 
 		//Create and add datapoints
 		datapoint := DataPoint{Result: retented, Variables: []float64{tutorialMomentum, levelMomentum, gameplayConsumed, socialActivity, progression, level}}
 		//datapoint := DataPoint{Result: retented, Variables: []float64{tutorialMomentum, gameplayConsumed}}
-		testDatapoint[i-trainingDataNum] = datapoint
+		testDatapoint[i] = datapoint
 	}
 
 	//Test prediction
